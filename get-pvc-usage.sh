@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 NODESAPI=/api/v1/nodes
 
@@ -8,7 +8,7 @@ function getNodes() {
 
 function getPVCs() {
   jq -s '[flatten | .[].pods[].volume[]? | select(has("pvcRef")) | '\
-'{name: .pvcRef.name, capacityBytes, usedBytes, availableBytes, '\
+'{namespace: .pvcRef.namespace, name: .pvcRef.name, capacityBytes, usedBytes, availableBytes, '\
 'percentageUsed: (.usedBytes / .capacityBytes * 100)}] | sort_by(.name)'
 }
 
@@ -18,17 +18,17 @@ function column() {
 }
 
 function defaultFormat() {
-  awk 'BEGIN { print "PVC 1K-blocks Used Available Use%" } '\
-'{$2 = $2/1024; $3 = $3/1024; $4 = $4/1024; $5 = sprintf("%.0f%%",$5); print $0}'
+  awk 'BEGIN { print "Namespace PVC 1K-blocks Used Available Use%" } '\
+'{$3 = $3/1024; $4 = $4/1024; $5 = $5/1024; $6 = sprintf("%.0f%%",$6); print $0}'
 }
 
 function humanFormat() {
-  awk 'BEGIN { print "PVC Size Used Avail Use%" } '\
-'{$5 = sprintf("%.0f%%",$5); printf("%s ", $1); system(sprintf("numfmt --to=iec %s %s %s | sed '\''N;N;s/\\n/ /g'\'' | tr -d \\\\n", $2, $3, $4)); print " " $5 }'
+  awk 'BEGIN { print "Namespace PVC Size Used Avail Use%" } '\
+'{$6 = sprintf("%.0f%%",$6); printf("%s %s ", $1, $2); system(sprintf("numfmt --to=iec %s %s %s | sed '\''N;N;s/\\n/ /g'\'' | tr -d \\\\n", $3, $4, $5)); print " " $6 }'
 }
 
 function format() {
-  jq -r '.[] | "\(.name) \(.capacityBytes) \(.usedBytes) \(.availableBytes) \(.percentageUsed)"' |
+  jq -r '.[] | "\(.namespace) \(.name) \(.capacityBytes) \(.usedBytes) \(.availableBytes) \(.percentageUsed)"' |
     $format | column
 }
 
@@ -38,6 +38,8 @@ else
   format=defaultFormat
 fi
 
+NAMESPACE_FILTER="$1"
+
 for node in $(getNodes); do
   kubectl get --raw $NODESAPI/$node/proxy/stats/summary
-done | getPVCs | format
+done | getPVCs | jq --arg ns "$NAMESPACE_FILTER" 'if $ns == "" then . else map(select(.namespace == $ns)) end' | format
