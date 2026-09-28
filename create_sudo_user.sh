@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Tạo user Ubuntu, cấp sudo NOPASSWD và add SSH public key của user đó.
 #
-# Cách dùng:
-#   curl -fsSL <RAW_URL> | sudo bash                      # hỏi user cần add
-#   curl -fsSL <RAW_URL> | sudo bash -s -- lhhoang2 dmnhat # truyền sẵn user
-#   curl -fsSL <RAW_URL> | sudo bash -s -- all            # add tất cả
-#   sudo bash create_sudo_user.sh [user...|all]
+# Hướng dẫn: bash create_sudo_user.sh -h
 
 set -euo pipefail
 
@@ -18,8 +14,37 @@ declare -A PUBKEYS=(
   [dmnhat]="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPAfgBFo1yv0S+4cbI32vPBNHXq15SdbA/Zi4hzOjogR dmnhat"
 )
 
+RAW_URL="https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/create_sudo_user.sh"
+
+usage() {
+  cat <<EOF
+Tạo user Ubuntu, cấp sudo NOPASSWD và add SSH public key. User đã tồn tại thì skip.
+
+User có sẵn: ${USERS[*]}
+
+Chọn user từ menu:
+  curl -sL ${RAW_URL} | sudo bash
+
+Truyền sẵn user:
+  curl -sL ${RAW_URL} | sudo bash -s -- <user1> <user2>
+
+Add tất cả:
+  curl -sL ${RAW_URL} | sudo bash -s -- all
+
+Hiện hướng dẫn này:
+  curl -sL ${RAW_URL} | bash -s -- -h
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
 if [[ $EUID -ne 0 ]]; then
-  echo "Phải chạy bằng root: curl -fsSL <url> | sudo bash" >&2
+  echo "Phải chạy bằng root." >&2
+  echo >&2
+  usage >&2
   exit 1
 fi
 
@@ -61,33 +86,36 @@ create_user() {
   chown "${username}:${username}" "$auth_keys"
 }
 
+ALL_CHOICE=$(( ${#USERS[@]} + 1 ))
+
 prompt_users() {
   # Khi chạy qua `curl | bash`, stdin là script nên phải đọc từ /dev/tty.
-  if [[ ! -r /dev/tty ]]; then
+  if ! { : < /dev/tty; } 2>/dev/null; then
     echo "Không có terminal để hỏi. Truyền user qua tham số: ... | sudo bash -s -- <user>" >&2
     exit 1
   fi
 
-  echo "User có sẵn:" > /dev/tty
+  echo "Bạn muốn tạo user nào?" > /dev/tty
   local i
   for i in "${!USERS[@]}"; do
     printf "  %d) %s\n" "$((i + 1))" "${USERS[$i]}" > /dev/tty
   done
-  echo "  a) tất cả" > /dev/tty
+  printf "  %d) all\n" "$ALL_CHOICE" > /dev/tty
+  printf "Chọn (vd: 1 3, hoặc %d): " "$ALL_CHOICE" > /dev/tty
 
   local answer
-  read -rp "Chọn user (số hoặc tên, cách nhau bởi dấu cách): " answer < /dev/tty
-  echo "$answer"
+  read -r answer < /dev/tty
+  read -ra args <<< "$answer"
 }
 
 args=("$@")
 if [[ ${#args[@]} -eq 0 ]]; then
-  read -ra args <<< "$(prompt_users)"
+  prompt_users
 fi
 
 selected=()
 for arg in "${args[@]}"; do
-  if [[ "$arg" == "a" || "$arg" == "all" ]]; then
+  if [[ "$arg" == "all" || "$arg" == "$ALL_CHOICE" ]]; then
     selected=("${USERS[@]}")
     break
   elif [[ "$arg" =~ ^[0-9]+$ ]] && (( arg >= 1 && arg <= ${#USERS[@]} )); then
@@ -95,7 +123,7 @@ for arg in "${args[@]}"; do
   elif [[ -n "${PUBKEYS[$arg]:-}" ]]; then
     selected+=("$arg")
   else
-    echo "Không biết user '${arg}'. Có: ${USERS[*]}" >&2
+    echo "Lựa chọn không hợp lệ: '${arg}'. Chạy với -h để xem hướng dẫn." >&2
     exit 1
   fi
 done
