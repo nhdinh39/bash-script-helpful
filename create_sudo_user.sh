@@ -148,4 +148,7 @@ for username in "${selected[@]}"; do
 done
 
 echo
-echo "Hoàn tất."
+echo "Hoàn tất. Đăng nhập bằng:"
+for username in "${selected[@]}"; do
+  echo "  ssh ${username}@<server-ip>"
+done
