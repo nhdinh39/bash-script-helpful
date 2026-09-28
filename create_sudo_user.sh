@@ -137,9 +137,16 @@ for username in "${selected[@]}"; do
   create_user "$username"
 done
 
-ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+mapfile -t ifaces < <(ip -o -4 addr show scope global 2>/dev/null | awk '$2 !~ /^(docker|br-|veth|virbr|cni|flannel|cali|cilium|kube|tunl|vxlan)/ {split($4, a, "/"); print $2 " " a[1]}')
+
 echo
 echo "Hoàn tất. Đăng nhập bằng:"
 for username in "${selected[@]}"; do
-  echo "  ssh ${username}@${ip:-<server-ip>}"
+  if [[ ${#ifaces[@]} -eq 0 ]]; then
+    echo "  ssh ${username}@<server-ip>"
+    continue
+  fi
+  for line in "${ifaces[@]}"; do
+    printf "  %-36s # %s\n" "ssh ${username}@${line#* }" "${line%% *}"
+  done
 done
