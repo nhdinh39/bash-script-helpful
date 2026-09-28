@@ -12,3 +12,24 @@ curl -sL https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/get
 ```
 curl -sL https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/create-standard-sg.sh | bash -s <security_group_ID>
 ```
+
+# How to create sudo user (Ubuntu)
+Tạo user, cấp sudo NOPASSWD và add SSH public key. User đã tồn tại thì skip. User có sẵn: `nhdinh`, `lhhoang2`, `ndtnhan`, `dmnhat`.
+
+### Chọn user từ menu
+```
+curl -sL https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/create_sudo_user.sh | sudo bash
+```
+
+### Truyền sẵn user
+```
+curl -sL https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/create_sudo_user.sh | sudo bash -s -- <user1> <user2>
+```
+
+### Tất cả user
+```
+curl -sL https://raw.githubusercontent.com/nhdinh39/bash-script-helpful/main/create_sudo_user.sh | sudo bash -s -- all
+```
+
+### Thêm user mới
+Thêm tên vào mảng `USERS` và `[tên]="<public key>"` vào `PUBKEYS` trong `create_sudo_user.sh`.
