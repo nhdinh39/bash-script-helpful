@@ -5,6 +5,16 @@
 
 set -euo pipefail
 
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "Script này chỉ chạy trên Linux (Ubuntu). Máy này là $(uname -s) — hãy ssh vào server rồi chạy." >&2
+  exit 1
+fi
+
+if (( BASH_VERSINFO[0] < 4 )); then
+  echo "Cần bash >= 4 (đang là ${BASH_VERSION})." >&2
+  exit 1
+fi
+
 USERS=(nhdinh lhhoang2 ndtnhan dmnhat)
 
 declare -A PUBKEYS=(
@@ -137,16 +147,5 @@ for username in "${selected[@]}"; do
   create_user "$username"
 done
 
-mapfile -t ifaces < <(ip -o -4 addr show scope global 2>/dev/null | awk '$2 !~ /^(docker|br-|veth|virbr|cni|flannel|cali|cilium|kube|tunl|vxlan)/ {split($4, a, "/"); print $2 " " a[1]}')
-
 echo
-echo "Hoàn tất. Đăng nhập bằng:"
-for username in "${selected[@]}"; do
-  if [[ ${#ifaces[@]} -eq 0 ]]; then
-    echo "  ssh ${username}@<server-ip>"
-    continue
-  fi
-  for line in "${ifaces[@]}"; do
-    printf "  %-36s # %s\n" "ssh ${username}@${line#* }" "${line%% *}"
-  done
-done
+echo "Hoàn tất."
