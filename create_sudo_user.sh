@@ -147,25 +147,8 @@ for username in "${selected[@]}"; do
   create_user "$username"
 done
 
-# sudo xoá SSH_CONNECTION khỏi env, nên đọc từ process cha (shell ssh gốc).
-ssh_connection() {
-  local pid=$$ conn
-  while [[ -n "$pid" && "$pid" -gt 1 ]]; do
-    conn=$(tr '\0' '\n' 2>/dev/null < "/proc/${pid}/environ" | sed -n 's/^SSH_CONNECTION=//p') || conn=""
-    if [[ -n "$conn" ]]; then
-      echo "$conn"
-      return 0
-    fi
-    pid=$(awk '/^PPid:/ {print $2}' "/proc/${pid}/status" 2>/dev/null) || pid=""
-  done
-}
-
-read -r _ _ server_ip server_port <<< "$(ssh_connection)" || true
-port_opt=""
-[[ -n "${server_port:-}" && "$server_port" != "22" ]] && port_opt="-p ${server_port} "
-
 echo
 echo "Hoàn tất. Đăng nhập bằng:"
 for username in "${selected[@]}"; do
-  echo "  ssh ${port_opt}${username}@${server_ip:-<server-ip>}"
+  echo "  ssh ${username}@<server-ip>"
 done
